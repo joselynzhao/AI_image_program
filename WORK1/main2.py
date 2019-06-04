@@ -34,7 +34,8 @@ window_y = range(y_up, y_botton+1)
 ss_standerd = 300  #判断是否是腿的方差线
 line_width = 10
 line_split_model = 500
-ratio = 8  #放松和模糊比例
+ratio = 3  #放松和模糊比例
+white_botton = 230
 
 def init_image(image): #任何图像在进行处理之前首先要进行初始化调整，即该为416*624
     image = image.resize((416, 624))
@@ -42,22 +43,69 @@ def init_image(image): #任何图像在进行处理之前首先要进行初始�
     return image
 
 
-def get_model(image3,image4): #model一共有2个类型，返回0表示衣服不手到裤子里面。返回1表示衣服放在裤子里面
-    sp_line1 = get_split_line(image3)
-    sp_line2 = get_split_line(image4)
+def get_model(image3,image4): #model一共有2个类型，返回0表示衣服不放到裤子里面。返回1表示衣服放在裤子里面
+    line11,line12 = get_split_line(image3)
+    line21,line22 = get_split_line(image4)
     # print(sp1,sp2)
-    print(sp_line1,sp_line2)
-    sp_line1 +=150
-    sp_line2 +=150
-    if sp_line1+sp_line2 < line_split_model:
+    print(line11,line12)
+    print(line21,line22)
+
+    #进行位置恢复
+    line11 += y_up
+    line12 += y_up
+    line21 += y_up
+    line22 += y_up
+
+    if line11+line21 > line_split_model:
         return 0
     else:
         return 1
 
 
+
+
 def index_recover(index):
     new_index = (index)*ratio
     return new_index
+
+def belong_white(r,g,b):
+    if r in [white_botton,256] and g in [white_botton,256] and b in [white_botton,256]:
+        return True
+    else:
+        return False
+
+
+def get_white_line(image): #传入的应该是s_image
+    height,width,path = image.shape
+    print("get_white_line，", image.shape,height)
+    i = height-1
+    while(1):
+        count = 0
+        get = 0
+        for k in range(width):
+            r,g,b = image[i,k]
+            if belong_white(r,g,b):
+                count+=1
+                if count>3: #找到了一个多个白色像素连续的地方
+                    i=i-1
+                    get = 1
+                    break
+            else:
+                count=0
+        if not get:
+            return i  #表示白色出现在i的下一行。
+
+        if i< height/3:
+            print("查找白色分割线遇到麻烦了")
+            return  i
+
+
+
+
+
+
+
+
 
 def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model调用..传入的是经过了init之后的图片。
     val_image = image[y_up:y_botton,x_axid-x_bias:x_axid+x_bias]  #裁剪之后，编码全部从0开始
@@ -73,7 +121,7 @@ def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model�
     print(s_image.shape)
 
     #接下里需要对逐个像素进行计算
-    width, height, path = s_image.shape
+    width,height, path = s_image.shape
     # print(width,height,path)
     differ=[] # 记录的相邻两行的差距
     for i in range(width):
@@ -89,23 +137,29 @@ def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model�
     # sorted(differ.items(), key=lambda x: x[1],reverse=True)
     differ.sort(key=lambda x: (x[1], x[0]), reverse=True)  # 双重排序，先对第二的元素排序，在对第一个元素排序
 
+    white_line = get_white_line(s_image)
+    # white_line = index_recover(white_line)
+    print("white line:",white_line)
     temp_i = 0
     while(1):
-        if(differ[temp_i][0]+10<= height):
-            index_y = differ[temp_i][0]+ 5
-        else:
-            index_y = height-2
-        sum = 0
-        for key in range(width):
-            r,g,b=s_image[key,index_y]
-            sq = get_squre([r,g,b])
-            sum+=sq
-        mean_sq = sum/float(width)
-        if mean_sq>500: #这个值待调整
-            # 这条line就要被抛弃
+        if(differ[temp_i][0]>=white_line):
             temp_i+=1
         else:
             break
+    #         index_y = differ[temp_i][0]+ 5
+    #     else:
+    #         index_y = height-2
+    #     sum = 0
+    #     for key in range(width):
+    #         r,g,b=s_image[key,index_y]
+    #         sq = get_squre([r,g,b])
+    #         sum+=sq
+    #     mean_sq = sum/float(width)
+    #     if mean_sq<1000: #这个值待调整
+    #         # 这条line就要被抛弃
+    #         temp_i+=1
+    #     else:
+    #         break
     print("temp_i:",temp_i)
     max = differ[temp_i]
     temp_j = temp_i+1
@@ -118,13 +172,13 @@ def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model�
     max_differ = differ[temp_i]
     sec_differ = differ[temp_j]
     max_differ_index = index_recover(max_differ[0])
-    max_differ = max_differ[1]
+    # max_differ = max_differ[1]
     sec_differ_index = index_recover(sec_differ[0])
-    sec_differ = sec_differ[1]
+    # sec_differ = sec_differ[1]
     print("key :", max_differ,sec_differ)
 
-    print("key max :", max_differ, max_differ_index)
-    print("key sec:", sec_differ, sec_differ_index)
+    print("key max index :", max_differ_index)
+    print("key sec index:", sec_differ_index)
 
 
     # max_squre = 0
@@ -160,7 +214,7 @@ def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model�
     #             return max_squre, max_index
     # else:
     #     return max_squre, max_index
-    return max_differ_index
+    return max_differ_index,sec_differ_index
 
 def get_all_windows():
     for i in range(4):
@@ -220,9 +274,9 @@ if __name__ =="__main__":
     # get_all_input34_and_drew()
     # get_all_windows()
 
-    image3,image4 = get_input34(3)
+    image3,image4 = get_input34(1)
     model = get_model(image3,image4)
     if model:
-        print("衣服放在裤子外面")
-    else:
         print("衣服扎在裤子里面")
+    else:
+        print("衣服放在裤子外面")
