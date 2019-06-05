@@ -5,11 +5,10 @@
 @CONTACT:zhaojing17@foxmail.com
 @HOME_PAGE:joselynzhao.top
 @SOFTWERE:PyCharm
-@FILE:main2.py
-@TIME:2019/6/3 20:13
+@FILE:main3.py
+@TIME:2019/6/4 21:39
 @DES:
 '''
-
 
 import  tensorflow as tf
 import  numpy as np
@@ -120,114 +119,49 @@ def get_split_line(image): #针对某一张图片 查找腰线 。 供get_model�
     plt.show()
     print(s_image.shape)
 
+    white_line = get_white_line(s_image)
+    # white_line = index_recover(white_line)
+    print("white line:", white_line)
+
     #接下里需要对逐个像素进行计算
     height,width, path = s_image.shape
     # print(width,height,path)
-    differ=[] # 记录的相邻两行的差距
-    for i in range(height-1):
+
+
+    stand_sq =0
+    for i in range(width): #计算white_line 上面第3和第四行的 像素差
+        r1, g1, b1 = s_image[white_line-3,i]
+        r2, g2, b2 = s_image[white_line-4,i]
+        stand_sq += get_squre([r1, r2]) + get_squre([g1, g2]) + get_squre([b1, b2])
+
+    differ = []  # 记录行与stand_sq之前的差距
+    for i in range(white_line-5,0,-1):
         sq = 0
         for j in range(width):  #遍历所有的点
-            r1, g1, b1 = s_image[i, j]
-            r2, g2, b2 = s_image[i+1, j]
+            r1, g1, b1 = s_image[white_line-3, j]
+            r2, g2, b2 = s_image[i, j]
             sq += get_squre([r1,r2]) + get_squre([g1,g2]) + get_squre([b1,b2])
+        sq = abs(sq-stand_sq)
         # differ[i] = sq #添加字典元素
         differ.append((i,sq))
+
+    differ1 = []
+    for i in range(len(differ)-1):
+        bias = abs(differ[i+1][1]-differ[i][1])
+        differ1.append((differ[i+1][0],bias))
 
     # 对differ进行排序
     # sorted(differ.items(), key=lambda x: x[1],reverse=True)
     differ.sort(key=lambda x: (x[1], x[0]), reverse=True)  # 双重排序，先对第二的元素排序，在对第一个元素排序
 
-    white_line = get_white_line(s_image)
-    # white_line = index_recover(white_line)
-    print("white line:",white_line)
-    temp_i = 0
-    while(1):
-        if(differ[temp_i][0]+5>=white_line):
-            temp_i+=1
-        elif differ[temp_i][0]<=5:
-            temp_i+=1
-        else:
-            break
-        if temp_i>=len(differ):
-            temp_i= 0
-            break
-    #         index_y = differ[temp_i][0]+ 5
-    #     else:
-    #         index_y = height-2
-    #     sum = 0
-    #     for key in range(width):
-    #         r,g,b=s_image[key,index_y]
-    #         sq = get_squre([r,g,b])
-    #         sum+=sq
-    #     mean_sq = sum/float(width)
-    #     if mean_sq<1000: #这个值待调整
-    #         # 这条line就要被抛弃
-    #         temp_i+=1
-    #     else:
-    #         break
-    print("temp_i:",temp_i)
-    # max = differ[temp_i]
-    temp_j = temp_i+1
-    while(1):
-        if abs(differ[temp_j][0]-differ[temp_i][0])<10:
-            temp_j+=1
-        elif differ[temp_j][0]+20 > white_line:
-            temp_j+=1
-        elif differ[temp_j][0]<=5:
-            temp_j+=1
-        else:
-            break
-        if temp_j>=len(differ):
-            temp_j= temp_i+1
-            break
-
-    # 看一下回复后的white_line
-    print(index_recover(white_line))
-    max_differ = differ[temp_i]
-    sec_differ = differ[temp_j]
-    max_differ_index = index_recover(max_differ[0])
-    # max_differ = max_differ[1]
-    sec_differ_index = index_recover(sec_differ[0])
-    # sec_differ = sec_differ[1]
-    print("key :", max_differ,sec_differ)
+    max_differ_index = index_recover(differ[0][0])
+    sec_differ_index = index_recover(differ[1][0])
 
     print("key max index :", max_differ_index)
     print("key sec index:", sec_differ_index)
 
 
-    # max_squre = 0
-    # max_squre_index = 0
-    # sec_squre = 0
-    # sec_squre_index = 0
-    # for i in range(len(differ)):
-    #     if differ[i] > max_squre and abs(i-max_squre_index)>=10:
-    #         sec_squre = max_squre
-    #         sec_squre_index = max_squre_index
-    #         max_squre = differ[i]
-    #         max_squre_index = i
-    #     elif differ[i]>max_squre and abs(i-max_squre_index)<10:
-    #         max_squre = differ[i]
-    #         max_squre_index = i
-    #     elif differ[i] > sec_squre and abs(i-sec_squre_index)>=10:
-    #         sec_squre = differ[i]
-    #         sec_squre_index = i
 
-    # print("old_index:",max_squre, sec_squre)
-    # print("old_index:",max_squre_index, sec_squre_index)
-    # sec_index = index_recover(sec_squre_index)
-    # max_index = index_recover(max_squre_index)
-    # print("new_index:", max_index, sec_index)
-    # # 检测 squre_index 大于120时的异常情况
-    # if (max_index >= 120):
-    #     for i in window_x:
-    #         r, g, b = val_image[i, max_squre_index + 10]
-    #         ss=get_squre([r,g,b])
-    #         if (ss < ss_standerd):  # 此时需第二大值。
-    #             return sec_squre, sec_index
-    #         else:
-    #             return max_squre, max_index
-    # else:
-    #     return max_squre, max_index
     return max_differ_index,sec_differ_index
 
 def get_all_windows():
