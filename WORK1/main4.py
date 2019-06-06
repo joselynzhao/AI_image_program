@@ -29,6 +29,15 @@ data_path="../DATA/"
 catch_range_x=[100,350]
 size_for_re = [416,624]
 seed_local_up = [150,110]
+label = 1
+model_line = 250
+window_x=[50,200]
+
+seed_m=[(250,75),(300,75),(280,75),(350,75)]
+pthresh=[100.0,100.0,100.0,100.0]
+rthresh = [60.0,60.0,60.0,60.0]
+bias = [0,0,0,0]
+seed_up = [(150,125)]
 
 
 
@@ -74,19 +83,19 @@ def rgb2gray(rgb):
     gray=0.2989*r + 0.5870*g + 0.1140*b
     return gray
 
+
 def get_figure(path):
     image  = Image.open(path)
     image = image.resize((416,624))
     # '''转换为灰度图'''
     # image = image.convert("L")
     image = np.array(image)
-
-
     image = image[:,catch_range_x[0]:catch_range_x[1]]
-    # plt.imshow(image)
-    # plt.title("get_figure")
-    # plt.show()
+    plt.imshow(image)
+    plt.title("get_figure")
+    plt.show()
     return image
+
 
 def seed_fill01(img,seed,pthresh,rthresh,label):
     '''
@@ -134,8 +143,6 @@ def seed_fill01(img,seed,pthresh,rthresh,label):
     plt.show()
     # print(labels)
     return labels
-
-
 
 
 def my_seed_fill(img,seed_local):
@@ -195,7 +202,9 @@ def isAcceptable(img, point, candidate, pixelThreshold, regionThreshold, labels,
         return False
 
 def he_seed_fill(img, seeds, pthresh, rthresh):
+    # img = rgb2gray(img)  # RGB-Gray
     # 获取图像的尺寸
+    img = img[:,:,0]
     h, w = img.shape
     # 定义待扩展栈
     stack_list = []
@@ -266,24 +275,127 @@ def he_seed_fill(img, seeds, pthresh, rthresh):
         #     stack_list.append((cur_i+1,cur_j+1))
         #     labels[cur_i+1][cur_j+1] = 1
     # 当待探索栈为空，返回区域标记
+
+    plt.imshow(labels, cmap='gray_r')
+    plt.title("labels")
+    plt.show()
     return labels
 
+def get_model(image,window_x):
+    '''
+    :param image: 获得的label图像，只含0和label
+    :param window_x: 横向遍历的范围 [50,200]
+    :return: model 0表示衣服在裤子外面，1表示衣服在裤子里面
+    '''
+    h,w = image.shape
+    line = 0
+    bool_find = 0
+    for i in range(h): #从上到下进行遍历
+        for j in range(window_x[0],window_x[1],1):
+            if image[i,j]== label:
+                line = i
+                bool_find = 1
+                break
 
+        if bool_find==1:
+            break
+
+    print("line:",line)
+    if line >= model_line:
+        return 0
+    else:
+        return 1
+
+def combine_image(image1,image2,model,k):
+    '''
+    :param image1: input1
+    :param image2: input2
+    :param image2_label:  input2的裤子抠图
+    :param model:  0表示外扎腰，1表示内扎腰
+    :return:  合成后的图像
+    '''
+
+    # 获取image1,2的种子
+    # 获取image1,2的label
+
+
+
+    h, w, p = image1.shape
+    if model == 0:# 在外扎腰的情况下  取衣服贴到裤子上， 即1放到2中
+        labels = he_seed_fill(image1, seed_up[k], pthresh[k], rthresh[k])  # 从image1中取出上衣
+        for i in range(350):
+            for j in range(w):
+                if labels[i][j]==label: #需要抠出来的部分
+                    image2[i][j][:]=image1[i][j][:]
+                    return image2
+    else: #model = 1的情况
+        labels = he_seed_fill(image2, seed_m[k], pthresh[k], rthresh[k])  # 从image2中取出裤子
+        for i in range(150,h,1):
+            for j in range(w):
+                if labels[i][j] == label:
+                    image1[i,j,:] = image2[i,j,:]
+                    return image1
+
+
+
+
+
+
+
+    #  当衣服是外扎腰时，裤子的抠图模式保留，衣服的抠图完全保留，衣服贴在裤子的抠图之上。
+    # while(model==0):
+    #     h,w = image1.shape
+    #     for i in range(h):
+    #         for j in range(w):
+    #             if get_label_wist_right>= i >= get_label_wist_left()
+    #
+    #             cimg[i,j] = image1[i,j]
+    #
+    #
+    #
+    #
+    # # 当衣服是内扎腰时，裤子的抠图完全保留，衣服的抠图去掉腰线以下的部分，裤子贴在衣服的抠图之上
+    # while(model==1):
+    #     h,w = image1.shape
+    #
+    # return cimg
 
 if __name__ =="__main__":
     # image3,image4 = get_input34(1)
     # print(image3.shape)
     # print(image4.shape)
-    seed=[(250,75),(300,75),(280,75),(350,75)]
-    pthresh=[20.0,20.0,60.0,70.0]
-    rthresh = [20.0,20.0,30.0,30.0]
-    for i in range(0,4,1):
-        path = "../DATA/%d/input4.JPG"%(i+1)
+
+    for i in range(0,1,1):
+        # path_get_model = "../DATA/%d/input4.JPG"%(i+1)
 
     # 获取图片
     # 对图片进行初始化，截图，降低分辨率
-        image = get_figure(path)
-        image = seed_fill01(image,seed[i],pthresh[i],rthresh[i],255)
+    #     image = get_figure(path_get_model)
+    #     image = he_seed_fill(image,seed_m[i],pthresh[i],rthresh[i])
+    #
+    #
+    #     ## 接下里确定组合模式
+    #     model = get_model(image,window_x)
+        # print(i,model)
+
+        path_get_input1 = "../DATA/%d/input1.JPG"%(i+1)
+        path_get_input2 = "../DATA/%d/input2.JPG"%(i+1)
+
+        # 获取图片
+        # 对图片进行初始化，截图，降低分辨率
+        image1 = get_figure(path_get_input1)
+        image2 = get_figure(path_get_input2)
+
+
+
+        # 组合衣服和裤子
+        image = combine_image(image1,image2,0,i)
+        plt.imshow(image)
+        plt.title("result")
+        plt.show()
+
+
+
 
     # image = my_seed_fill(image,seed_local_up)
 
