@@ -34,10 +34,11 @@ model_line = 250
 window_x=[50,200]
 
 seed_m=[(250,75),(300,75),(280,75),(350,75)]
-pthresh=[100.0,100.0,100.0,100.0]
-rthresh = [60.0,60.0,60.0,60.0]
+pthresh=100
+rthresh = 60
 bias = [0,0,0,0]
-seed_up = [(150,125)]
+seed_up = [150,125]
+shift_list = [0,-5,-15,+15]
 
 
 
@@ -97,7 +98,7 @@ def get_figure(path):
     return image
 
 
-def seed_fill01(img,seed,pthresh,rthresh,label):
+def seed_fill01(img,seed,pthresh,rthresh):
     '''
     seed：种子
     pthresh: 种子像素阈值
@@ -221,14 +222,14 @@ def he_seed_fill(img, seeds, pthresh, rthresh):
     # 搜索状态空间
     while len(stack_list) + len(head_list) != 0:
         if count % head_list_len == 0:
-            print("expand %d, stack %6d head %6d" % (count, len(stack_list), len(head_list)))
+            # print("expand %d, stack %6d head %6d" % (count, len(stack_list), len(head_list)))
 
             head_len = len(head_list)
             # stack_len = len(stack_list)
             if head_len > head_list_len:
                 stack_list += head_list[0:head_list_len]
                 head_list = head_list[head_list_len:head_len]
-            print("stack %6d head %6d" % (len(stack_list), len(head_list)))
+            # print("stack %6d head %6d" % (len(stack_list), len(head_list)))
 
         if len(head_list) == 0 and len(stack_list) >= head_list_len:
             head_list = stack_list[len(stack_list) - head_list_len:len(stack_list)]
@@ -262,18 +263,7 @@ def he_seed_fill(img, seeds, pthresh, rthresh):
         if isAcceptable(img, [cur_i, cur_j], [cur_i, cur_j + 1], pthresh, rthresh, labels, seeds):
             head_list.append((cur_i, cur_j + 1))
             labels[cur_i][cur_j + 1] = 1
-        # if isAcceptable(img, [cur_i,cur_j], [cur_i-1,cur_j-1], pthresh, rthresh, labels, seeds):
-        #     stack_list.append((cur_i-1,cur_j-1))
-        #     labels[cur_i-1][cur_j-1] = 1
-        # if isAcceptable(img, [cur_i,cur_j], [cur_i-1,cur_j+1], pthresh, rthresh, labels, seeds):
-        #     stack_list.append((cur_i-1,cur_j+1))
-        #     labels[cur_i-1][cur_j+1] = 1
-        # if isAcceptable(img, [cur_i,cur_j], [cur_i+1,cur_j-1], pthresh, rthresh, labels, seeds):
-        #     stack_list.append((cur_i+1,cur_j-1))
-        #     labels[cur_i+1][cur_j-1] = 1
-        # if isAcceptable(img, [cur_i,cur_j], [cur_i+1,cur_j+1], pthresh, rthresh, labels, seeds):
-        #     stack_list.append((cur_i+1,cur_j+1))
-        #     labels[cur_i+1][cur_j+1] = 1
+
     # 当待探索栈为空，返回区域标记
 
     plt.imshow(labels, cmap='gray_r')
@@ -322,19 +312,19 @@ def combine_image(image1,image2,model,k):
 
     h, w, p = image1.shape
     if model == 0:# 在外扎腰的情况下  取衣服贴到裤子上， 即1放到2中
-        labels = he_seed_fill(image1, seed_up[k], pthresh[k], rthresh[k])  # 从image1中取出上衣
+        labels = he_seed_fill(image1, seed_up, pthresh, rthresh)  # 从image1中取出上衣
         for i in range(350):
             for j in range(w):
                 if labels[i][j]==label: #需要抠出来的部分
-                    image2[i][j][:]=image1[i][j][:]
-                    return image2
+                    image2[i][j+shift_list[k]][:]=image1[i][j][:]
+        return image2
     else: #model = 1的情况
-        labels = he_seed_fill(image2, seed_m[k], pthresh[k], rthresh[k])  # 从image2中取出裤子
+        labels = he_seed_fill(image2, seed_m[k], pthresh, rthresh)  # 从image2中取出裤子
         for i in range(150,h,1):
             for j in range(w):
                 if labels[i][j] == label:
-                    image1[i,j,:] = image2[i,j,:]
-                    return image1
+                    image1[i,j+shift_list[k],:] = image2[i,j,:]
+        return image1
 
 
 
@@ -365,18 +355,18 @@ if __name__ =="__main__":
     # print(image3.shape)
     # print(image4.shape)
 
-    for i in range(0,1,1):
-        # path_get_model = "../DATA/%d/input4.JPG"%(i+1)
+    for i in range(0,4,1):
+        path_get_model = "../DATA/%d/input4.JPG"%(i+1)
 
     # 获取图片
     # 对图片进行初始化，截图，降低分辨率
-    #     image = get_figure(path_get_model)
-    #     image = he_seed_fill(image,seed_m[i],pthresh[i],rthresh[i])
+        image = get_figure(path_get_model)
+        image = he_seed_fill(image,seed_m[i],pthresh,rthresh)
     #
     #
     #     ## 接下里确定组合模式
-    #     model = get_model(image,window_x)
-        # print(i,model)
+        model = get_model(image,window_x)
+        print(i,model)
 
         path_get_input1 = "../DATA/%d/input1.JPG"%(i+1)
         path_get_input2 = "../DATA/%d/input2.JPG"%(i+1)
@@ -386,16 +376,15 @@ if __name__ =="__main__":
         image1 = get_figure(path_get_input1)
         image2 = get_figure(path_get_input2)
 
-
-
         # 组合衣服和裤子
-        image = combine_image(image1,image2,0,i)
+        image = combine_image(image1,image2,model,i)
+
+        #保存并显示图像
+        save_path = "../SAVE/%dresult.png"%(i+1)
         plt.imshow(image)
         plt.title("result")
+        plt.savefig(save_path)
         plt.show()
-
-
-
 
     # image = my_seed_fill(image,seed_local_up)
 
