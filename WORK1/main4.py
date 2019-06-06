@@ -32,7 +32,7 @@ seed_local_up = [150,110]
 
 
 
-def seed_fill(img):
+def seed_fill(img,seed,):
     ret,img = cv2.threshold(img,128,255,cv2.THRESH_BINARY_INV)
     label = 100
     stack_list = []
@@ -43,7 +43,7 @@ def seed_fill(img):
                 img[i][j] = label
                 stack_list.append((i,j))
                 while len(stack_list)!=0:
-                    cur_i = stack_list[-1][0]
+                    cur_i = stack_list[-1][0] #取栈顶
                     cur_j = stack_list[-1][1]
                     img[cur_i][cur_j] = label
                     stack_list.remove(stack_list[-1])
@@ -80,11 +80,63 @@ def get_figure(path):
     # '''转换为灰度图'''
     # image = image.convert("L")
     image = np.array(image)
-    # plt.imshow(image)
-    # plt.show()
+
 
     image = image[:,catch_range_x[0]:catch_range_x[1]]
+    # plt.imshow(image)
+    # plt.title("get_figure")
+    # plt.show()
     return image
+
+def seed_fill01(img,seed,pthresh,rthresh,label):
+    '''
+    seed：种子
+    pthresh: 种子像素阈值
+    rthresh: 相邻像素阈值
+    lable：选区标志
+    window：查询窗口
+    '''
+    img = rgb2gray(img) #RGB-Gray
+    h,w = img.shape
+    stack_list = []
+    labels = np.zeros([h,w]) #先将labels 全部填充为0
+    seedy,seedx = seed[0],seed[1]
+    stack_list.append((seedy,seedx)) #将种子压入栈内
+    #搜索状态空间
+    while len(stack_list)!=0:
+        cur_i = stack_list[-1][0] #i在h方向上
+        cur_j = stack_list[-1][1] #j在w方向上
+        labels[cur_i][cur_j]=label
+        stack_list.remove(stack_list[-1]) #将栈顶pop出来
+        # 判断边界条件，防止数组溢出
+        if (cur_i == 0 or cur_i == h - 1 or cur_j == 0 or cur_j == w - 1):
+            continue
+        if (np.abs(int(img[cur_i-1,cur_j])-int(img[seedy,seedx]))<pthresh) and \
+                (np.abs(int(img[cur_i - 1, cur_j]) - int(img[cur_i, cur_j])) < rthresh) and \
+                labels[cur_i-1,cur_j]!=label:
+            stack_list.append((cur_i-1,cur_j))
+        if (np.abs(int(img[cur_i,cur_j-1])-int(img[seedy,seedx]))<pthresh) and \
+                (np.abs(int(img[cur_i, cur_j-1]) - int(img[cur_i, cur_j])) < rthresh) and \
+                labels[cur_i,cur_j-1]!=label:
+            stack_list.append((cur_i, cur_j-1))
+        if (np.abs(int(img[cur_i, cur_j + 1]) - int(img[seedy, seedx])) < pthresh) and \
+                (np.abs(int(img[cur_i, cur_j+1]) - int(img[cur_i, cur_j])) < rthresh) and \
+                labels[cur_i, cur_j + 1] != label:
+            stack_list.append((cur_i, cur_j + 1))
+        if (np.abs(int(img[cur_i+ 1, cur_j ]) - int(img[seedy, seedx])) < pthresh) and \
+                (np.abs(int(img[cur_i + 1, cur_j]) - int(img[cur_i, cur_j])) < rthresh) and \
+                labels[cur_i+ 1, cur_j ] != label:
+            stack_list.append((cur_i+ 1, cur_j ))
+
+    # plt.imshow(labels)
+    plt.imshow(labels, cmap='gray_r')
+    plt.title("labels")
+    plt.show()
+    # print(labels)
+    return labels
+
+
+
 
 def my_seed_fill(img,seed_local):
     # h,w,p = img.shape
@@ -96,11 +148,11 @@ def my_seed_fill(img,seed_local):
 
     #如果我只考虑红色通道
     # img = img[:,:,1]
-    # plt.imshow(img)
-    # plt.show()
 
     '''获取种子点的信息，以便设置阈值'''
     img = rgb2gray(img)  #将其设置为 灰度
+    plt.imshow(img)
+    plt.show()
     color = img[seed_local[0],seed_local[1]]
     print(color)
     ret,img = cv2.threshold(img,color+10,255,cv2.THRESH_BINARY_INV)
@@ -222,13 +274,18 @@ if __name__ =="__main__":
     # image3,image4 = get_input34(1)
     # print(image3.shape)
     # print(image4.shape)
-    path = "../DATA/1/input4.JPG"
+    seed=[(250,75),(300,75),(280,75),(350,75)]
+    pthresh=[20.0,20.0,60.0,70.0]
+    rthresh = [20.0,20.0,30.0,30.0]
+    for i in range(0,4,1):
+        path = "../DATA/%d/input4.JPG"%(i+1)
 
     # 获取图片
     # 对图片进行初始化，截图，降低分辨率
-    image = get_figure(path)
-    image = my_seed_fill(image,seed_local_up)
+        image = get_figure(path)
+        image = seed_fill01(image,seed[i],pthresh[i],rthresh[i],255)
 
+    # image = my_seed_fill(image,seed_local_up)
 
     #
 

@@ -219,12 +219,12 @@ def get_all_input34_and_drew():
 
 
 if __name__ =="__main__":
-    # get_all_input34_and_drew()
+    get_all_input34_and_drew()
     # get_all_windows()
 
-    image3,image4 = get_input34(4)
-    model = get_model(image3,image4)
-    if model:
-        print("衣服扎在裤子里面")
-    else:
-        print("衣服放在裤子外面")
+    # image3,image4 = get_input34(4)
+    # model = get_model(image3,image4)
+    # if model:
+    #     print("衣服扎在裤子里面")
+    # else:
+    #     print("衣服放在裤子外面")
